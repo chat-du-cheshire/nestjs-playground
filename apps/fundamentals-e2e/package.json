@@ -1,0 +1,26 @@
+{
+  "name": "@nestjs-playground/fundamentals-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@nestjs-playground/fundamentals"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{projectRoot}/test-output/jest/coverage"
+        ],
+        "dependsOn": [
+          "@nestjs-playground/fundamentals:build",
+          "@nestjs-playground/fundamentals:serve"
+        ],
+        "options": {
+          "jestConfig": "apps/fundamentals-e2e/jest.config.cts",
+          "passWithNoTests": true
+        }
+      }
+    }
+  }
+}
