@@ -12,6 +12,9 @@ export class Coffee {
   @Column()
   brand!: string;
 
+  @Column('int', { default: 0 })
+  recommendations!: number;
+
   @ManyToMany(() => Flavor, (flavor) => flavor.coffees, { cascade: true })
   @JoinTable()
   flavors!: Flavor[];

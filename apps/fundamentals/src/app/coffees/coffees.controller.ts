@@ -28,6 +28,11 @@ export class CoffeesController {
     return this.coffeesService.update(+id, updateCoffeeDto);
   }
 
+  @Post(':id/recommend')
+  recommend(@Param('id') id: string) {
+    return this.coffeesService.recommendCoffee(+id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.coffeesService.remove(+id);

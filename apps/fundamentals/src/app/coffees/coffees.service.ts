@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Coffee } from './entities/coffee.entity';
 import { Flavor } from './entities/flavor.entity';
+import { Event } from '../events/entities/event.entity';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
@@ -14,6 +15,8 @@ export class CoffeesService {
     private readonly coffeeRepository: Repository<Coffee>,
     @InjectRepository(Flavor)
     private readonly flavorRepository: Repository<Flavor>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   findAll(paginationQuery: PaginationQueryDto): Promise<Coffee[]> {
@@ -46,7 +49,8 @@ export class CoffeesService {
       ...createCoffeeDto,
       flavors,
     });
-    return this.coffeeRepository.save(coffee);
+
+    return this.withTransaction((manager) => manager.save(coffee));
   }
 
   async update(id: number, updateCoffeeDto: UpdateCoffeeDto): Promise<Coffee> {
@@ -68,12 +72,28 @@ export class CoffeesService {
       throw new NotFoundException(`Coffee with id: ${id} not found`);
     }
 
-    return this.coffeeRepository.save(coffee);
+    return this.withTransaction((manager) => manager.save(coffee));
   }
 
   async remove(id: number): Promise<Coffee> {
     const coffee = await this.findOne(id);
     return this.coffeeRepository.remove(coffee);
+  }
+
+  async recommendCoffee(id: number): Promise<Coffee> {
+    const coffee = await this.findOne(id);
+    coffee.recommendations++;
+
+    const recommendEvent = new Event();
+    recommendEvent.type = 'coffee';
+    recommendEvent.name = 'recommend_coffee';
+    recommendEvent.payload = { coffeeId: coffee.id };
+
+    return this.withTransaction(async (manager) => {
+      const savedCoffee = await manager.save(coffee);
+      await manager.save(recommendEvent);
+      return savedCoffee;
+    });
   }
 
   private async preloadFlavorByName(name: string): Promise<Flavor> {
@@ -84,5 +104,24 @@ export class CoffeesService {
     }
 
     return this.flavorRepository.create({ name });
+  }
+
+  private async withTransaction<T>(
+    work: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const result = await work(queryRunner.manager);
+      await queryRunner.commitTransaction();
+      return result;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
