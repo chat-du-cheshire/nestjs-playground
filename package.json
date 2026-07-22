@@ -2,15 +2,20 @@
   "name": "@nestjs-playground/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "typeorm": "TS_NODE_PROJECT=apps/fundamentals/tsconfig.app.json typeorm-ts-node-commonjs -d ormconfig.ts"
+  },
   "private": true,
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.3",
     "axios": "^1.6.0",
+    "pg": "^8.22.0",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.31"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
