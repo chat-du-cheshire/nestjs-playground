@@ -43,5 +43,6 @@ Thumbs.db
 .nx/migrate-runs
 .claude/worktrees
 .claude/settings.local.json
+CLAUDE.md
 
 test-output
