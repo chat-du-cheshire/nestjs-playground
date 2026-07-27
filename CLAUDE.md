@@ -2,6 +2,10 @@
 
 - This is a NestJS course playground NX monorepo
 
+## CLI
+
+- Use nx cli instead of npm when possible
+
 ## Git
 
 - Use conventional commits
