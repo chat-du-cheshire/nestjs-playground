@@ -20,6 +20,9 @@ module.exports = {
       outputHashing: 'none',
       generatePackageJson: false,
       sourceMap: true,
+      transformers: [
+        { name: '@nestjs/swagger/plugin' },
+      ],
     })
   ],
 };
