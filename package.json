@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "start": "nx serve fundamentals",
     "typeorm": "TS_NODE_PROJECT=apps/fundamentals/tsconfig.app.json typeorm-ts-node-commonjs -d ormconfig.ts"
   },
   "private": true,
