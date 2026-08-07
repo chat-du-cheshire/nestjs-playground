@@ -26,6 +26,9 @@ describe('AppModule (e2e)', () => {
   });
 
   it('GET /api/coffees should return 200', async () => {
-    await request(app.getHttpServer()).get('/api/coffees').expect(200);
+    await request(app.getHttpServer())
+      .get('/api/coffees')
+      .set('Authorization', process.env.API_KEY as string)
+      .expect(200);
   });
 });
