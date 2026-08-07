@@ -1,11 +1,6 @@
-import { resolve } from 'path';
-import { config } from 'dotenv';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-
-config({ path: resolve(__dirname, '../../../../.env') });
-
 import { AppModule } from './app.module';
 
 describe('AppModule (e2e)', () => {
