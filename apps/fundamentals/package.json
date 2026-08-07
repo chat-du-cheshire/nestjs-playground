@@ -79,6 +79,16 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "test-e2e": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{projectRoot}/test-output/jest-e2e/coverage"
+        ],
+        "options": {
+          "jestConfig": "apps/fundamentals/jest.config.e2e.cts",
+          "passWithNoTests": true
+        }
       }
     }
   },

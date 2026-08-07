@@ -5,6 +5,14 @@
   "scripts": {
     "start": "nx serve fundamentals",
     "test": "nx test fundamentals",
+    "pretest:integration": "npm run db:test:up",
+    "test:integration": "DB_PORT=5433 nx test-e2e fundamentals",
+    "posttest:integration": "npm run db:test:down",
+    "pretest:e2e": "npm run db:test:up",
+    "test:e2e": "DB_PORT=5433 nx e2e fundamentals-e2e",
+    "posttest:e2e": "npm run db:test:down",
+    "db:test:up": "docker compose up -d postgres_test",
+    "db:test:down": "docker compose rm -sf postgres_test",
     "typeorm": "TS_NODE_PROJECT=apps/fundamentals/tsconfig.app.json typeorm-ts-node-commonjs -d ormconfig.ts"
   },
   "private": true,
