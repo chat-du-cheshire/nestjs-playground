@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
-import { Coffee } from './entities/coffee.entity';
-import { Flavor } from './entities/flavor.entity';
-import { Event } from '../events/entities/event.entity';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { ClientSession, Connection, Model, Types } from 'mongoose';
+import { Coffee, CoffeeDocument } from './schemas/coffee.schema';
+import { Flavor, FlavorDocument } from './schemas/flavor.schema';
+import { Event, EventDocument } from '../events/schemas/event.schema';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
@@ -11,28 +11,34 @@ import { PaginationQueryDto } from './dto/pagination-query.dto';
 @Injectable()
 export class CoffeesService {
   constructor(
-    @InjectRepository(Coffee)
-    private readonly coffeeRepository: Repository<Coffee>,
-    @InjectRepository(Flavor)
-    private readonly flavorRepository: Repository<Flavor>,
-    @InjectDataSource()
-    private readonly dataSource: DataSource,
+    @InjectModel(Coffee.name)
+    private readonly coffeeModel: Model<CoffeeDocument>,
+    @InjectModel(Flavor.name)
+    private readonly flavorModel: Model<FlavorDocument>,
+    @InjectModel(Event.name)
+    private readonly eventModel: Model<EventDocument>,
+    @InjectConnection()
+    private readonly connection: Connection,
   ) {}
 
-  findAll(paginationQuery: PaginationQueryDto): Promise<Coffee[]> {
+  findAll(paginationQuery: PaginationQueryDto): Promise<CoffeeDocument[]> {
     const { limit, offset } = paginationQuery;
-    return this.coffeeRepository.find({
-      relations: ['flavors'],
-      take: limit,
-      skip: offset,
-    });
+    let query = this.coffeeModel.find().populate('flavors');
+
+    if (offset) {
+      query = query.skip(offset);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return query.exec();
   }
 
-  async findOne(id: number): Promise<Coffee> {
-    const coffee = await this.coffeeRepository.findOne({
-      where: { id },
-      relations: ['flavors'],
-    });
+  async findOne(id: string): Promise<CoffeeDocument> {
+    const coffee = Types.ObjectId.isValid(id)
+      ? await this.coffeeModel.findById(id).populate('flavors').exec()
+      : null;
 
     if (!coffee) {
       throw new NotFoundException(`Coffee with id: ${id} not found`);
@@ -41,87 +47,131 @@ export class CoffeesService {
     return coffee;
   }
 
-  async create(createCoffeeDto: CreateCoffeeDto): Promise<Coffee> {
-    const flavors = await Promise.all(
-      createCoffeeDto.flavors.map((name) => this.preloadFlavorByName(name)),
-    );
-    const coffee = this.coffeeRepository.create({
-      ...createCoffeeDto,
-      flavors,
-    });
+  create(createCoffeeDto: CreateCoffeeDto): Promise<CoffeeDocument> {
+    return this.withTransaction(async (session) => {
+      const flavors = await this.preloadFlavorsByName(
+        createCoffeeDto.flavors,
+        session,
+      );
+      const [coffee] = await this.coffeeModel.create(
+        [{ ...createCoffeeDto, flavors: flavors.map((f) => f._id) }],
+        { session },
+      );
 
-    return this.withTransaction((manager) => manager.save(coffee));
+      await coffee.populate('flavors');
+      return coffee;
+    });
   }
 
-  async update(id: number, updateCoffeeDto: UpdateCoffeeDto): Promise<Coffee> {
-    const { flavors: flavorNames, ...rest } = updateCoffeeDto;
+  update(
+    id: string,
+    updateCoffeeDto: UpdateCoffeeDto,
+  ): Promise<CoffeeDocument> {
+    return this.withTransaction(async (session) => {
+      const { flavors: flavorNames, ...rest } = updateCoffeeDto;
 
-    const flavors =
-      flavorNames &&
-      (await Promise.all(
-        flavorNames.map((name) => this.preloadFlavorByName(name)),
-      ));
+      const flavors =
+        flavorNames &&
+        (await this.preloadFlavorsByName(flavorNames, session));
 
-    const coffee = await this.coffeeRepository.preload({
-      id,
-      ...rest,
-      ...(flavors && { flavors }),
+      const coffee = Types.ObjectId.isValid(id)
+        ? await this.coffeeModel
+            .findByIdAndUpdate(
+              id,
+              {
+                ...rest,
+                ...(flavors && { flavors: flavors.map((f) => f._id) }),
+              },
+              { returnDocument: 'after', session },
+            )
+            .populate('flavors')
+        : null;
+
+      if (!coffee) {
+        throw new NotFoundException(`Coffee with id: ${id} not found`);
+      }
+
+      return coffee;
     });
+  }
 
-    if (!coffee) {
-      throw new NotFoundException(`Coffee with id: ${id} not found`);
+  async remove(id: string): Promise<CoffeeDocument> {
+    const coffee = await this.findOne(id);
+    await coffee.deleteOne();
+    return coffee;
+  }
+
+  recommendCoffee(id: string): Promise<CoffeeDocument> {
+    return this.withTransaction(async (session) => {
+      const coffee = Types.ObjectId.isValid(id)
+        ? await this.coffeeModel.findById(id).session(session)
+        : null;
+
+      if (!coffee) {
+        throw new NotFoundException(`Coffee with id: ${id} not found`);
+      }
+
+      coffee.recommendations++;
+      await coffee.save({ session });
+
+      await this.eventModel.create(
+        [
+          {
+            type: 'coffee',
+            name: 'recommend_coffee',
+            payload: { coffeeId: coffee.id },
+          },
+        ],
+        { session },
+      );
+
+      await coffee.populate('flavors');
+      return coffee;
+    });
+  }
+
+  private async preloadFlavorsByName(
+    names: string[],
+    session: ClientSession,
+  ): Promise<FlavorDocument[]> {
+    // A ClientSession only supports one in-flight operation at a time, so
+    // these must run sequentially rather than via Promise.all.
+    const flavors: FlavorDocument[] = [];
+    for (const name of names) {
+      flavors.push(await this.preloadFlavorByName(name, session));
     }
-
-    return this.withTransaction((manager) => manager.save(coffee));
+    return flavors;
   }
 
-  async remove(id: number): Promise<Coffee> {
-    const coffee = await this.findOne(id);
-    return this.coffeeRepository.remove(coffee);
-  }
-
-  async recommendCoffee(id: number): Promise<Coffee> {
-    const coffee = await this.findOne(id);
-    coffee.recommendations++;
-
-    const recommendEvent = new Event();
-    recommendEvent.type = 'coffee';
-    recommendEvent.name = 'recommend_coffee';
-    recommendEvent.payload = { coffeeId: coffee.id };
-
-    return this.withTransaction(async (manager) => {
-      const savedCoffee = await manager.save(coffee);
-      await manager.save(recommendEvent);
-      return savedCoffee;
-    });
-  }
-
-  private async preloadFlavorByName(name: string): Promise<Flavor> {
-    const existingFlavor = await this.flavorRepository.findOneBy({ name });
+  private async preloadFlavorByName(
+    name: string,
+    session: ClientSession,
+  ): Promise<FlavorDocument> {
+    const existingFlavor = await this.flavorModel
+      .findOne({ name })
+      .session(session);
 
     if (existingFlavor) {
       return existingFlavor;
     }
 
-    return this.flavorRepository.create({ name });
+    const [created] = await this.flavorModel.create([{ name }], { session });
+    return created;
   }
 
   private async withTransaction<T>(
-    work: (manager: EntityManager) => Promise<T>,
+    work: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    const session = await this.connection.startSession();
 
     try {
-      const result = await work(queryRunner.manager);
-      await queryRunner.commitTransaction();
-      return result;
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      throw err;
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await work(session);
+      });
+      return result as T;
     } finally {
-      await queryRunner.release();
+      await session.endSession();
     }
   }
 }

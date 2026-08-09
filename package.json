@@ -6,14 +6,13 @@
     "start": "nx serve fundamentals",
     "test": "nx test fundamentals",
     "pretest:integration": "npm run db:test:up",
-    "test:integration": "DB_PORT=5433 nx test-e2e fundamentals",
+    "test:integration": "MONGO_PORT=27018 nx test-e2e fundamentals",
     "posttest:integration": "npm run db:test:down",
     "pretest:e2e": "npm run db:test:up",
-    "test:e2e": "DB_PORT=5433 nx e2e fundamentals-e2e",
+    "test:e2e": "MONGO_PORT=27018 nx e2e fundamentals-e2e",
     "posttest:e2e": "npm run db:test:down",
-    "db:test:up": "docker compose up -d postgres_test",
-    "db:test:down": "docker compose rm -sf postgres_test",
-    "typeorm": "TS_NODE_PROJECT=apps/fundamentals/tsconfig.app.json typeorm-ts-node-commonjs -d ormconfig.ts"
+    "db:test:up": "docker compose up -d mongo_test mongo-test-init",
+    "db:test:down": "docker compose rm -sf mongo_test mongo-test-init"
   },
   "private": true,
   "dependencies": {
@@ -23,13 +22,10 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.3",
     "axios": "^1.6.0",
     "mongoose": "^9.9.1",
-    "pg": "^8.22.0",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0",
-    "typeorm": "^0.3.31"
+    "rxjs": "^7.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",

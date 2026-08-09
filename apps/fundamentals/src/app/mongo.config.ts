@@ -65,6 +65,6 @@ export function createMongooseModuleOptions(
   const database = getRequiredEnv(env, 'MONGO_DATABASE');
 
   return {
-    uri: `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin`,
+    uri: `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin&replicaSet=rs0`,
   };
 }

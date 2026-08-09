@@ -1,100 +1,129 @@
 import { NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
+import { Types } from 'mongoose';
 import { CoffeesService } from './coffees.service';
-import { Coffee } from './entities/coffee.entity';
-import { Flavor } from './entities/flavor.entity';
-import { Event } from '../events/entities/event.entity';
+
+function createQueryMock<T>(resolvedValue: T) {
+  const query: Record<string, jest.Mock> & {
+    then: Promise<T>['then'];
+  } = {} as never;
+
+  query.populate = jest.fn().mockReturnValue(query);
+  query.skip = jest.fn().mockReturnValue(query);
+  query.limit = jest.fn().mockReturnValue(query);
+  query.session = jest.fn().mockReturnValue(query);
+  query.exec = jest.fn().mockResolvedValue(resolvedValue);
+  query.then = ((resolve, reject) =>
+    Promise.resolve(resolvedValue).then(resolve, reject)) as Promise<T>['then'];
+
+  return query;
+}
 
 describe('CoffeesService', () => {
   let service: CoffeesService;
-  let coffeeRepository: jest.Mocked<Repository<Coffee>>;
-  let flavorRepository: jest.Mocked<Repository<Flavor>>;
-  let manager: jest.Mocked<EntityManager>;
-  let queryRunner: jest.Mocked<QueryRunner>;
+  let coffeeModel: {
+    find: jest.Mock;
+    findById: jest.Mock;
+    findByIdAndUpdate: jest.Mock;
+    create: jest.Mock;
+  };
+  let flavorModel: { findOne: jest.Mock; create: jest.Mock };
+  let eventModel: { create: jest.Mock };
+  let session: {
+    withTransaction: jest.Mock;
+    endSession: jest.Mock;
+  };
+  let connection: { startSession: jest.Mock };
+
+  const objectId = () => new Types.ObjectId().toHexString();
 
   beforeEach(() => {
-    coffeeRepository = {
-      create: jest.fn(),
+    coffeeModel = {
       find: jest.fn(),
-      findOne: jest.fn(),
-      preload: jest.fn(),
-      remove: jest.fn(),
-    } as unknown as jest.Mocked<Repository<Coffee>>;
-    flavorRepository = {
+      findById: jest.fn(),
+      findByIdAndUpdate: jest.fn(),
       create: jest.fn(),
-      findOneBy: jest.fn(),
-    } as unknown as jest.Mocked<Repository<Flavor>>;
-    manager = {
-      save: jest.fn(),
-    } as unknown as jest.Mocked<EntityManager>;
-    queryRunner = {
-      manager,
-      connect: jest.fn().mockResolvedValue(undefined),
-      startTransaction: jest.fn().mockResolvedValue(undefined),
-      commitTransaction: jest.fn().mockResolvedValue(undefined),
-      rollbackTransaction: jest.fn().mockResolvedValue(undefined),
-      release: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<QueryRunner>;
-    const dataSource = {
-      createQueryRunner: jest.fn().mockReturnValue(queryRunner),
-    } as unknown as jest.Mocked<DataSource>;
+    };
+    flavorModel = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    eventModel = {
+      create: jest.fn(),
+    };
+    session = {
+      withTransaction: jest.fn().mockImplementation(async (work) => work()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    connection = {
+      startSession: jest.fn().mockResolvedValue(session),
+    };
 
     service = new CoffeesService(
-      coffeeRepository,
-      flavorRepository,
-      dataSource,
+      coffeeModel as never,
+      flavorModel as never,
+      eventModel as never,
+      connection as never,
     );
   });
 
   describe('findAll', () => {
     it('loads coffees with flavors and applies pagination', async () => {
-      const coffees = [{ id: 1, title: 'Latte' }] as Coffee[];
-      coffeeRepository.find.mockResolvedValue(coffees);
+      const coffees = [{ title: 'Latte' }];
+      const query = createQueryMock(coffees);
+      coffeeModel.find.mockReturnValue(query);
 
       await expect(service.findAll({ limit: 10, offset: 20 })).resolves.toBe(
         coffees,
       );
-      expect(coffeeRepository.find).toHaveBeenCalledWith({
-        relations: ['flavors'],
-        take: 10,
-        skip: 20,
-      });
+      expect(query.populate).toHaveBeenCalledWith('flavors');
+      expect(query.skip).toHaveBeenCalledWith(20);
+      expect(query.limit).toHaveBeenCalledWith(10);
     });
   });
 
   describe('findOne', () => {
     it('returns a coffee with its flavors', async () => {
-      const coffee = { id: 1, title: 'Latte' } as Coffee;
-      coffeeRepository.findOne.mockResolvedValue(coffee);
+      const id = objectId();
+      const coffee = { id, title: 'Latte' };
+      const query = createQueryMock(coffee);
+      coffeeModel.findById.mockReturnValue(query);
 
-      await expect(service.findOne(1)).resolves.toBe(coffee);
-      expect(coffeeRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 1 },
-        relations: ['flavors'],
-      });
+      await expect(service.findOne(id)).resolves.toBe(coffee);
+      expect(coffeeModel.findById).toHaveBeenCalledWith(id);
+      expect(query.populate).toHaveBeenCalledWith('flavors');
     });
 
     it('throws when the coffee does not exist', async () => {
-      coffeeRepository.findOne.mockResolvedValue(null);
+      const id = objectId();
+      coffeeModel.findById.mockReturnValue(createQueryMock(null));
 
-      await expect(service.findOne(404)).rejects.toThrow(
-        new NotFoundException('Coffee with id: 404 not found'),
+      await expect(service.findOne(id)).rejects.toThrow(
+        new NotFoundException(`Coffee with id: ${id} not found`),
       );
+    });
+
+    it('throws when the id is not a valid ObjectId', async () => {
+      await expect(service.findOne('not-an-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(coffeeModel.findById).not.toHaveBeenCalled();
     });
   });
 
   describe('create', () => {
     it('reuses existing flavors, creates missing flavors, and commits', async () => {
-      const vanilla = { id: 1, name: 'vanilla' } as Flavor;
-      const caramel = { name: 'caramel' } as Flavor;
-      const coffee = { title: 'Latte', brand: 'Acme' } as Coffee;
-      const savedCoffee = { ...coffee, id: 1 } as Coffee;
-      flavorRepository.findOneBy
-        .mockResolvedValueOnce(vanilla)
-        .mockResolvedValueOnce(null);
-      flavorRepository.create.mockReturnValue(caramel);
-      coffeeRepository.create.mockReturnValue(coffee);
-      manager.save.mockResolvedValue(savedCoffee);
+      const vanilla = { _id: objectId(), name: 'vanilla' };
+      const caramel = { _id: objectId(), name: 'caramel' };
+      const coffee = {
+        title: 'Latte',
+        brand: 'Acme',
+        populate: jest.fn().mockResolvedValue(undefined),
+      };
+      flavorModel.findOne
+        .mockReturnValueOnce(createQueryMock(vanilla))
+        .mockReturnValueOnce(createQueryMock(null));
+      flavorModel.create.mockResolvedValue([caramel]);
+      coffeeModel.create.mockResolvedValue([coffee]);
 
       await expect(
         service.create({
@@ -102,26 +131,31 @@ describe('CoffeesService', () => {
           brand: 'Acme',
           flavors: ['vanilla', 'caramel'],
         }),
-      ).resolves.toBe(savedCoffee);
+      ).resolves.toBe(coffee);
 
-      expect(flavorRepository.create).toHaveBeenCalledWith({ name: 'caramel' });
-      expect(coffeeRepository.create).toHaveBeenCalledWith({
-        title: 'Latte',
-        brand: 'Acme',
-        flavors: [vanilla, caramel],
-      });
-      expect(manager.save).toHaveBeenCalledWith(coffee);
-      expect(queryRunner.commitTransaction).toHaveBeenCalledTimes(1);
-      expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
-      expect(queryRunner.release).toHaveBeenCalledTimes(1);
+      expect(flavorModel.create).toHaveBeenCalledWith(
+        [{ name: 'caramel' }],
+        { session },
+      );
+      expect(coffeeModel.create).toHaveBeenCalledWith(
+        [
+          {
+            title: 'Latte',
+            brand: 'Acme',
+            flavors: [vanilla._id, caramel._id],
+          },
+        ],
+        { session },
+      );
+      expect(coffee.populate).toHaveBeenCalledWith('flavors');
+      expect(session.endSession).toHaveBeenCalledTimes(1);
     });
 
-    it('rolls back, releases, and rethrows when saving fails', async () => {
+    it('propagates errors and still ends the session', async () => {
       const error = new Error('save failed');
-      flavorRepository.findOneBy.mockResolvedValue(null);
-      flavorRepository.create.mockReturnValue({ name: 'vanilla' } as Flavor);
-      coffeeRepository.create.mockReturnValue({ title: 'Latte' } as Coffee);
-      manager.save.mockRejectedValue(error);
+      flavorModel.findOne.mockReturnValue(createQueryMock(null));
+      flavorModel.create.mockResolvedValue([{ _id: objectId(), name: 'vanilla' }]);
+      coffeeModel.create.mockRejectedValue(error);
 
       await expect(
         service.create({
@@ -131,74 +165,81 @@ describe('CoffeesService', () => {
         }),
       ).rejects.toBe(error);
 
-      expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalledTimes(1);
-      expect(queryRunner.release).toHaveBeenCalledTimes(1);
+      expect(session.endSession).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('update', () => {
-    it('preloads flavor entities and commits the updated coffee', async () => {
-      const vanilla = { id: 1, name: 'vanilla' } as Flavor;
-      const coffee = { id: 1, title: 'Updated', flavors: [vanilla] } as Coffee;
-      flavorRepository.findOneBy.mockResolvedValue(vanilla);
-      coffeeRepository.preload.mockResolvedValue(coffee);
-      manager.save.mockResolvedValue(coffee);
+    it('preloads flavor documents and commits the updated coffee', async () => {
+      const id = objectId();
+      const vanilla = { _id: objectId(), name: 'vanilla' };
+      const coffee = { id, title: 'Updated', flavors: [vanilla] };
+      flavorModel.findOne.mockReturnValue(createQueryMock(vanilla));
+      coffeeModel.findByIdAndUpdate.mockReturnValue(createQueryMock(coffee));
 
       await expect(
-        service.update(1, { title: 'Updated', flavors: ['vanilla'] }),
+        service.update(id, { title: 'Updated', flavors: ['vanilla'] }),
       ).resolves.toBe(coffee);
-      expect(coffeeRepository.preload).toHaveBeenCalledWith({
-        id: 1,
-        title: 'Updated',
-        flavors: [vanilla],
-      });
-      expect(queryRunner.commitTransaction).toHaveBeenCalledTimes(1);
-      expect(queryRunner.release).toHaveBeenCalledTimes(1);
+      expect(coffeeModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        id,
+        { title: 'Updated', flavors: [vanilla._id] },
+        { returnDocument: 'after', session },
+      );
     });
 
     it('throws when the coffee does not exist', async () => {
-      coffeeRepository.preload.mockResolvedValue(undefined);
+      const id = objectId();
+      coffeeModel.findByIdAndUpdate.mockReturnValue(createQueryMock(null));
 
-      await expect(service.update(404, { title: 'Missing' })).rejects.toThrow(
-        new NotFoundException('Coffee with id: 404 not found'),
-      );
-      expect(queryRunner.connect).not.toHaveBeenCalled();
+      await expect(
+        service.update(id, { title: 'Missing' }),
+      ).rejects.toThrow(new NotFoundException(`Coffee with id: ${id} not found`));
     });
   });
 
   describe('remove', () => {
     it('finds and removes the coffee', async () => {
-      const coffee = { id: 1, title: 'Latte' } as Coffee;
-      coffeeRepository.findOne.mockResolvedValue(coffee);
-      coffeeRepository.remove.mockResolvedValue(coffee);
+      const id = objectId();
+      const coffee = {
+        id,
+        title: 'Latte',
+        deleteOne: jest.fn().mockResolvedValue(undefined),
+      };
+      coffeeModel.findById.mockReturnValue(createQueryMock(coffee));
 
-      await expect(service.remove(1)).resolves.toBe(coffee);
-      expect(coffeeRepository.remove).toHaveBeenCalledWith(coffee);
+      await expect(service.remove(id)).resolves.toBe(coffee);
+      expect(coffee.deleteOne).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('recommendCoffee', () => {
     it('increments recommendations and saves the coffee and event atomically', async () => {
-      const coffee = { id: 1, title: 'Latte', recommendations: 2 } as Coffee;
-      const savedCoffee = { ...coffee, recommendations: 3 } as Coffee;
-      coffeeRepository.findOne.mockResolvedValue(coffee);
-      manager.save.mockResolvedValueOnce(savedCoffee).mockResolvedValueOnce({});
+      const id = objectId();
+      const coffee = {
+        id,
+        title: 'Latte',
+        recommendations: 2,
+        save: jest.fn().mockResolvedValue(undefined),
+        populate: jest.fn().mockResolvedValue(undefined),
+      };
+      coffeeModel.findById.mockReturnValue(createQueryMock(coffee));
+      eventModel.create.mockResolvedValue([{}]);
 
-      await expect(service.recommendCoffee(1)).resolves.toBe(savedCoffee);
+      await expect(service.recommendCoffee(id)).resolves.toBe(coffee);
 
       expect(coffee.recommendations).toBe(3);
-      expect(manager.save).toHaveBeenNthCalledWith(1, coffee);
-      expect(manager.save).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining<Event>({
-          type: 'coffee',
-          name: 'recommend_coffee',
-          payload: { coffeeId: 1 },
-        }),
+      expect(coffee.save).toHaveBeenCalledWith({ session });
+      expect(eventModel.create).toHaveBeenCalledWith(
+        [
+          {
+            type: 'coffee',
+            name: 'recommend_coffee',
+            payload: { coffeeId: id },
+          },
+        ],
+        { session },
       );
-      expect(queryRunner.commitTransaction).toHaveBeenCalledTimes(1);
-      expect(queryRunner.release).toHaveBeenCalledTimes(1);
+      expect(session.endSession).toHaveBeenCalledTimes(1);
     });
   });
 });

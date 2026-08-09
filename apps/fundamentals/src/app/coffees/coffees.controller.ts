@@ -17,7 +17,7 @@ export class CoffeesController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.coffeesService.findOne(+id);
+    return this.coffeesService.findOne(id);
   }
 
   @Post()
@@ -27,16 +27,16 @@ export class CoffeesController {
 
   @Put(':id')
   update(@Param('id') id: string, @Body() updateCoffeeDto: UpdateCoffeeDto) {
-    return this.coffeesService.update(+id, updateCoffeeDto);
+    return this.coffeesService.update(id, updateCoffeeDto);
   }
 
   @Post(':id/recommend')
   recommend(@Param('id') id: string) {
-    return this.coffeesService.recommendCoffee(+id);
+    return this.coffeesService.recommendCoffee(id);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.coffeesService.remove(+id);
+    return this.coffeesService.remove(id);
   }
 }

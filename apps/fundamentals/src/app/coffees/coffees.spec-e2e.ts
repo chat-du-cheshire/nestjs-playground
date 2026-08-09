@@ -1,6 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import request from 'supertest';
 import { CoffeesModule } from './coffees.module';
 
@@ -9,25 +9,18 @@ describe('CoffeesModule (e2e)', () => {
 
   beforeAll(async () => {
     // Connect straight to the dedicated test DB (docker-compose
-    // `postgres_test`, port 5433) instead of going through AppModule's
+    // `mongo_test`, port 27018) instead of going through AppModule's
     // ConfigService-driven connection, since this suite will create/mutate
-    // real rows and ConfigModule reads process.env synchronously at import
-    // time (too early to override from inside a test).
+    // real documents and ConfigModule reads process.env synchronously at
+    // import time (too early to override from inside a test).
     // NOTE: this drops the global ApiKeyGuard (only registered via
     // AppModule/CommonModule) — revisit if these tests need to assert on it.
     const moduleRef = await Test.createTestingModule({
       imports: [
         CoffeesModule,
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          host: 'localhost',
-          port: 5433,
-          username: 'postgres',
-          password: 'postgres',
-          database: 'nestjs_db',
-          autoLoadEntities: true,
-          synchronize: true,
-        }),
+        MongooseModule.forRoot(
+          'mongodb://mongo:mongo@localhost:27018/nestjs_db?authSource=admin&replicaSet=rs0',
+        ),
       ],
     }).compile();
 
@@ -64,10 +57,10 @@ describe('CoffeesModule (e2e)', () => {
       })
       .expect(201);
 
-    return res.body as { id: number; title: string; brand: string };
+    return res.body as { id: string; title: string; brand: string };
   }
 
-  async function deleteCoffee(id: number) {
+  async function deleteCoffee(id: string) {
     await request(app.getHttpServer()).delete(`/api/coffees/${id}`);
   }
 
