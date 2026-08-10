@@ -3,8 +3,10 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start": "nx serve fundamentals",
-    "test": "nx test fundamentals",
+    "start:fundamentals": "nx serve fundamentals",
+    "start:advanced-concepts": "nx serve advanced-concepts",
+    "test:fundamentals": "nx test fundamentals",
+    "test:advanced-concepts": "nx test advanced-concepts",
     "pretest:integration": "npm run db:test:up",
     "test:integration": "DB_PORT=5433 nx test-e2e fundamentals",
     "posttest:integration": "npm run db:test:down",

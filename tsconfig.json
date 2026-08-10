@@ -8,6 +8,9 @@
     },
     {
       "path": "./apps/fundamentals"
+    },
+    {
+      "path": "./apps/advanced-concepts"
     }
   ]
 }
