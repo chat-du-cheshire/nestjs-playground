@@ -1,14 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { LazyModuleLoader } from '@nestjs/core';
 
 @Injectable()
 export class CoffeesService {
+  constructor(private readonly lazyModuleLoader: LazyModuleLoader) {}
+
   create(createCoffeeDto: CreateCoffeeDto) {
+  
     return 'This action adds a new coffee';
   }
 
-  findAll() {
+  async findAll() {
+    const rewardModuleRef = await this.lazyModuleLoader.load(() => import('../reward/reward.module').then((m) => m.RewardModule));
+    const {RewardService} = await import('../reward/reward.service');
+    const rewardService = rewardModuleRef.get(RewardService);
+    rewardService.meow();
+  
     return `This action returns all coffees`;
   }
 
