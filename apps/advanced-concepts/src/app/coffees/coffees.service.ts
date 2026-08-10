@@ -13,8 +13,8 @@ export class CoffeesService {
   }
 
   async findAll() {
-    const rewardModuleRef = await this.lazyModuleLoader.load(() => import('../reward/reward.module').then((m) => m.RewardModule));
-    const {RewardService} = await import('../reward/reward.service');
+    const rewardModuleRef = await this.lazyModuleLoader.load(() => import('../reward/reward.module.ts').then((m) => m.RewardModule));
+    const {RewardService} = await import('../reward/reward.service.ts');
     const rewardService = rewardModuleRef.get(RewardService);
     rewardService.meow();
   
