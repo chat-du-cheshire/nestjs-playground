@@ -16,6 +16,12 @@ module.exports = {
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
       assets: ['./src/assets'],
+      additionalEntryPoints: [
+        {
+          entryName: 'fibonacci.worker',
+          entryPath: './src/app/fibonacci/fibonacci.worker.ts',
+        },
+      ],
       optimization: false,
       outputHashing: 'none',
       generatePackageJson: false,
