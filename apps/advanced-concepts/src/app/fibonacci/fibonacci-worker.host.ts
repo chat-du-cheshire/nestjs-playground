@@ -1,21 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { Worker } from 'node:worker_threads';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { join } from 'node:path';
+import { Piscina } from 'piscina';
 
 @Injectable()
-export class FibonacciWorkerHost {
+export class FibonacciWorkerHost implements OnModuleDestroy {
+  private readonly pool = new Piscina({
+    filename: join(__dirname, 'fibonacci.worker.js'),
+  });
+
   run(n: number): Promise<number> {
-    return new Promise((resolve, reject) => {
-      const worker = new Worker(join(__dirname, 'fibonacci.worker.js'), {
-        workerData: { n },
-      });
+    return this.pool.run(n);
+  }
 
-      worker.once('message', (result: number) => {
-        resolve(result);
-        worker.terminate();
-      });
-
-      worker.once('error', reject);
-    });
+  onModuleDestroy(): Promise<void> {
+    return this.pool.destroy();
   }
 }

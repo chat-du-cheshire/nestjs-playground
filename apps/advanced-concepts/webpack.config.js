@@ -5,6 +5,9 @@ module.exports = {
   output: {
     path: join(__dirname, 'dist'),
     clean: true,
+    // Piscina loads the worker bundle via `require(filename)`, so every
+    // entry point (not just main.js) needs a real `module.exports` assignment.
+    library: { type: 'commonjs2' },
     ...(process.env.NODE_ENV !== 'production' && {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
