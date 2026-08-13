@@ -11,6 +11,9 @@
     },
     {
       "path": "./apps/advanced-concepts"
+    },
+    {
+      "path": "./schematics/configurable-module"
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "ConfigurableModule",
+  "title": "Generate a NestJS ConfigurableModuleBuilder-based module",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the module (e.g. payments).",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "What name would you like to use for the configurable module?"
+    },
+    "project": {
+      "type": "string",
+      "description": "The app or lib project to generate the module into.",
+      "x-prompt": "Which project should the module be generated in?",
+      "x-dropdown": "projects"
+    },
+    "directory": {
+      "type": "string",
+      "alias": "dir",
+      "description": "Subdirectory (relative to <project>/src/app) to nest the module folder under."
+    },
+    "skipFormat": {
+      "type": "boolean",
+      "description": "Skip formatting generated files.",
+      "default": false
+    }
+  },
+  "required": ["name", "project"]
+}

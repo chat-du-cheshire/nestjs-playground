@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nrwl/nx/master/packages/nx/schemas/generators.json",
+  "generators": {
+    "configurable-module": {
+      "factory": "./src/generators/configurable-module/generator.ts",
+      "schema": "./src/generators/configurable-module/schema.json",
+      "description": "Scaffold a NestJS module using the ConfigurableModuleBuilder pattern"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@nestjs-playground/configurable-module",
+  "version": "0.0.1",
+  "private": true,
+  "generators": "./generators.json",
+  "dependencies": {
+    "@nx/devkit": "23.1.0"
+  }
+}

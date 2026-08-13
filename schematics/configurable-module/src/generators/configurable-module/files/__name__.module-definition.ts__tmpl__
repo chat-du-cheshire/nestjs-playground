@@ -1,0 +1,14 @@
+import { ConfigurableModuleBuilder } from '@nestjs/common';
+
+export interface <%= className %>ModuleOptions {
+  // TODO: define the options accepted by <%= className %>Module
+}
+
+export const {
+  ConfigurableModuleClass,
+  MODULE_OPTIONS_TOKEN,
+  OPTIONS_TYPE,
+  ASYNC_OPTIONS_TYPE,
+} = new ConfigurableModuleBuilder<<%= className %>ModuleOptions>()
+  .setClassMethodName('forRoot')
+  .build();
