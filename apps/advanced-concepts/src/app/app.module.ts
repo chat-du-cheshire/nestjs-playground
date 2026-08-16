@@ -7,6 +7,12 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { FibonacciModule } from './fibonacci/fibonacci.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PaymentsModule } from './payments/payments.module';
+import { DataSourceModule } from './data-source/data-source.module';
+import { UsersModule } from './users/users.module';
+import { ContextIdFactory } from '@nestjs/core';
+import { AggregateByContextIdStrategy } from './core/aggregate-by-tenant.strategy';
+
+ContextIdFactory.apply(new AggregateByContextIdStrategy());
 
 @Module({
   imports: [
@@ -16,6 +22,8 @@ import { PaymentsModule } from './payments/payments.module';
     FibonacciModule,
     EventEmitterModule.forRoot(),
     PaymentsModule,
+    DataSourceModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
