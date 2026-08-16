@@ -10,7 +10,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { DataSourceModule } from './data-source/data-source.module';
 import { UsersModule } from './users/users.module';
 import { ContextIdFactory } from '@nestjs/core';
-import { AggregateByContextIdStrategy } from './core/aggregate-by-tenant.strategy';
+import { AggregateByContextIdStrategy } from './core/aggregate-by-tenant-and-locale.strategy';
+import { I18nModule } from './i18n/i18n.module';
 
 ContextIdFactory.apply(new AggregateByContextIdStrategy());
 
@@ -24,6 +25,7 @@ ContextIdFactory.apply(new AggregateByContextIdStrategy());
     PaymentsModule,
     DataSourceModule,
     UsersModule,
+    I18nModule,
   ],
   controllers: [AppController],
   providers: [AppService],
