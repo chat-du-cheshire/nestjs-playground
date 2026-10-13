@@ -13,10 +13,10 @@ import { IamModule } from './iam/iam.module';
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
-      port: 5432,
+      port: 5434,
       username: 'postgres',
-      password: 'pass123',
-      database: 'postgres',
+      password: 'postgres',
+      database: 'nestjs_db',
       autoLoadEntities: true,
       synchronize: true,
     }),
