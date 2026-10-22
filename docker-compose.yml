@@ -7,32 +7,13 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nestjs_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - nestjs_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres_auth:
-    image: postgres:15-alpine
-    container_name: nestjs_postgres_auth
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: nestjs_db
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_auth_data:/var/lib/postgresql/data
-    networks:
-      - nestjs_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,16 +26,41 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nestjs_db
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     networks:
       - nestjs_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
+
+  postgres_auth:
+    image: postgres:15-alpine
+    container_name: nestjs_postgres_auth
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nestjs_db
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    networks:
+      - nestjs_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_auth:
+    image: redis
+    ports:
+      - '6379:6379'
+    restart: always
 
 volumes:
   postgres_data:
