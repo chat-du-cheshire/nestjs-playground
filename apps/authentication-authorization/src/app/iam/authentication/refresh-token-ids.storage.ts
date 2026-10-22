@@ -1,9 +1,12 @@
 import {
+  Inject,
   Injectable,
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
 import Redis from 'ioredis';
+import jwtConfig from '../config/jwt.config';
+import type { ConfigType } from '@nestjs/config';
 
 export class InvalidateRefreshTokenError extends Error {}
 
@@ -12,6 +15,11 @@ export class RefreshTokenIdsStorage
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
   private redis!: Redis;
+
+  constructor(
+    @Inject(jwtConfig.KEY)
+    private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
+  ) {}
 
   onApplicationBootstrap() {
     this.redis = new Redis({
@@ -25,7 +33,12 @@ export class RefreshTokenIdsStorage
   }
 
   async insert(userId: number, token: string) {
-    await this.redis.set(this.getKey(userId), token);
+    await this.redis.set(
+      this.getKey(userId),
+      token,
+      'EX',
+      this.jwtConfiguration.refreshTokenTtl,
+    );
   }
 
   async validate(userId: number, token: string) {
