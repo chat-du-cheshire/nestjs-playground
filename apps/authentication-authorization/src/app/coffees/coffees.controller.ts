@@ -16,13 +16,16 @@ import { Role } from '../users/enums/role.enum';
 import { Roles } from '../iam/authorization/decorators/roles.decorator';
 import { PermissionType } from '../iam/authorization/permission.type';
 import { Permissions } from '../iam/authorization/decorators/permissions.decorator';
+import { Policies } from '../iam/authorization/decorators/policies.decorator';
+import { WhateverPolicy } from '../iam/authorization/policies/whatever.policy';
 
 @Controller('coffees')
 export class CoffeesController {
   constructor(private readonly coffeesService: CoffeesService) {}
 
   // @Roles(Role.Admin)
-  @Permissions(PermissionType.CreateCoffee)
+  // @Permissions(PermissionType.CreateCoffee)
+  @Policies(new WhateverPolicy()) // Example of using a policy
   @Post()
   create(@Body() createCoffeeDto: CreateCoffeeDto) {
     return this.coffeesService.create(createCoffeeDto);
