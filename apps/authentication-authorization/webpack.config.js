@@ -13,7 +13,8 @@ module.exports = {
     new NxAppWebpackPlugin({
       target: 'node',
       compiler: 'tsc',
-      main: './src/main.ts',
+      main:
+        process.env.ENTRY === 'repl' ? './src/app/repl.ts' : './src/main.ts',
       tsConfig: './tsconfig.app.json',
       assets: ['./src/assets'],
       optimization: false,
