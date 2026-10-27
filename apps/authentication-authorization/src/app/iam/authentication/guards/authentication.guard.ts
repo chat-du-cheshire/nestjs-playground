@@ -9,6 +9,7 @@ import { Observable } from 'rxjs';
 import { AccessTokenGuard } from './access-token.guard';
 import { AuthType } from '../enums/auth-type.enums';
 import { AUTH_TYPE_KEY } from '../decorators/auth.decorator';
+import { ApiKeyGuard } from './api-key.guard';
 
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
@@ -17,12 +18,14 @@ export class AuthenticationGuard implements CanActivate {
   private readonly authTypeMap: Record<AuthType, CanActivate | CanActivate[]> =
     {
       [AuthType.Bearer]: this.accessTokenGuard,
+      [AuthType.ApiKey]: this.apiKeyGuard,
       [AuthType.None]: { canActivate: () => true },
     };
 
   constructor(
     private readonly reflector: Reflector,
     private readonly accessTokenGuard: AccessTokenGuard,
+    private readonly apiKeyGuard: ApiKeyGuard,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
