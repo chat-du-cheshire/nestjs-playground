@@ -20,6 +20,9 @@
     },
     {
       "path": "./apps/authentication-authorization"
+    },
+    {
+      "path": "./apps/arch"
     }
   ]
 }

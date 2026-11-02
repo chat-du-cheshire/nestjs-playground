@@ -6,6 +6,7 @@
     "start:fundamentals": "nx serve fundamentals",
     "start:advanced-concepts": "nx serve advanced-concepts",
     "start:auth": "nx serve authentication-authorization",
+    "start:arch": "nx serve arch",
     "test:fundamentals": "nx test fundamentals",
     "test:advanced-concepts": "nx test advanced-concepts",
     "pretest:integration": "npm run db:test:up",
